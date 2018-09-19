@@ -11,17 +11,16 @@ class Application:
     def __init__(self, root):
         self.root = root
         self.root.title("DigiCourse Birds depths Excel helper")
-        parent = Frame(self.root)
-
+        parent = Frame(self.root)  # new frame inside which all widgets reside
+        self.combobox = Combobox(parent, values=self.read_available_com_ports())
         self.init_gui(parent)
 
     def init_gui(self, parent):
         Label(parent, text="Please select COM port that is connected to DigiCourse PC:").pack()
         Label(parent, text="COM port:").pack(side="left")
 
-        combobox = Combobox(parent, values=self.read_available_com_ports())
-        combobox.pack(side="left")
-        combobox.current(0)  # sets the first index as a selected option
+        self.combobox.pack(side="left")
+        self.combobox.current(0)  # sets the first index as a selected option
 
         connect_button = Button(parent, text="Connect", command=self.button_pressed)
         connect_button.pack(side="left")
@@ -44,7 +43,7 @@ class Application:
         return [comport.device for comport in serial.tools.list_ports.comports()]
 
     def button_pressed(self):
-        pass
+        print("Test: " + self.combobox.get())
 
     def read_file(self):
         data = '''Q12:04:380148505C020337C063293C102501C120390C1304130012BT01029803072658BT0202860
