@@ -3,6 +3,7 @@ import re
 from tkinter import *
 from tkinter.ttk import *
 import serial
+import serial.tools.list_ports;
 
 
 def main():
@@ -10,15 +11,18 @@ def main():
     print("Observer's log helper reading digi birds depths")
     print('-----------------------------------------------')
 
-
-    com_port_string = ""
     root = Tk()
     parent = Frame(root)
     root.title("DigiCourse Birds depths Excel helper")
     Label(parent, text="Please select COM port that is connected to DigiCourse PC:").pack()
     Label(parent, text="COM port:").pack(side="left")
-    Combobox(parent, textvariable=com_port_string, values=["COM1", "COM2"]).pack(side="left")
-    Button(parent, text="Connect").pack(side="left")
+
+    combobox = Combobox(parent, values=read_available_com_ports())
+    combobox.pack(side="left")
+    combobox.current(0)  # sets the first index as a selected option
+
+    connect_button = Button(parent, text="Connect", command=button_pressed)
+    connect_button.pack(side="left")
 
     parent.pack()
     status_frame = Frame(root)
@@ -35,7 +39,8 @@ def main():
 
     root.mainloop()
 
-
+def button_pressed():
+    print(combobox.get())
 def read_file():
     data = '''Q12:04:380148505C020337C063293C102501C120390C1304130012BT01029803072658BT0202860
 1992851BT03028002051497BT04031302272774BT05029802732619BT06030402442774BT0703510
@@ -44,6 +49,11 @@ def read_file():
     pattern = re.compile(r'\s+')  # removes whitespaces inside the incoming string
     data = re.sub(pattern, '', data)
     return data
+
+
+# Creates a list with available COM ports using list comprehension
+def read_available_com_ports():
+    return [comport.device for comport in serial.tools.list_ports.comports()]
 
 
 def open_serial_port_and_read():
