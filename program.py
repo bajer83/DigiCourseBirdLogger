@@ -110,7 +110,6 @@ class Application:
 
         self.stop_thread.clear()  # sets the Event to False again
 
-
     def count_lines_on_text_console(self):
         (line, c) = map(int, self.text_console.index("end-1c").split("."))
         return line
@@ -122,7 +121,6 @@ class Application:
         thread = threading.Thread(target=self.open_serial_port_and_read, args=(self.stop_thread, "Serial thread"),
                                   daemon=TRUE)
         thread.start()
-
 
     def write_to_file(self, data_to_save):
         with open(os.path.join(os.path.abspath('.'), 'digiBirdsDepthsLog.txt'), 'w') as save_file:
