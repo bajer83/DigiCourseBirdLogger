@@ -21,9 +21,11 @@ class Application:
 
         self.combobox = Combobox(root, values=self.read_available_com_ports())  # creating and initilising Combobox
         self.combobox.grid(row=0, column=1)
+        # TODO
+        # Add a check for number of COM ports detected. If none the program will currently crash.
         self.combobox.current(0)  # sets the first index as a selected option
 
-        self.connect_button = Button(root, text="Connect", command=self.open_serial_port_and_read_thread)
+        self.connect_button = Button(root, text="Connect", command=self.connect_disconnect_event)
         self.connect_button.grid(row=0, column=2, columnspan=1, sticky=NSEW)
 
         Separator(root, orient='horizontal').grid(row=2, column=0, columnspan=3, sticky=NSEW, pady=[10, 0])
@@ -33,18 +35,15 @@ class Application:
         self.text_console = Text(self.root, width=50, height=50)
         self.text_console.grid(row=5, column=0, columnspan=3)
 
-        #scroll_bar = Scrollbar(self.root)
-        #self.text_console.configure(yscrollcommand=scroll_bar.set)
-        #scroll_bar.config(command=self.text_console.yview)
-       # scroll_bar.grid(row=5, column=4, sticky='NSW')
+        self.stop_thread = threading.Event()  # must contain brackets
+
+        # self.scroll_bar = Scrollbar(self.root)
+        # self.text_console.configure(yscrollcommand=self.scroll_bar.set)
+        # self.scroll_bar.config(command=self.text_console.yview)
+        #
+        # self.scroll_bar.grid(row=5, column=4, sticky='NSW')
 
     # Label(parent, text="Please select COM port that is connected to DigiCourse PC:")
-
-    def toggle_connect_button_state(self):
-        if self.connect_button.cget("text") == 'Connect':
-            self.connect_button.config(text="Connected")
-        else:
-            self.connect_button.config(text="Connect")
 
     def read_available_com_ports(self):
         # Creates a list with available COM ports using list comprehension
@@ -59,10 +58,33 @@ class Application:
     #     data = re.sub(pattern, '', data)
     #     return data
 
-    def open_serial_port_and_read(self):
+    def connect_disconnect_event(self):
+        """
+        Method that connects and diconnects from the selected COM port
+        """
+        if self.check_if_port_open():
+            print("Port is Closed")
+            self.connect_disconnect_event_thread()  # start a new thread that read serial data in a loop
+            self.connect_button.config(text="Disconnect")
+        else:
+            print("Port is Opened")
+            self.stop_thread.set()
+            self.connect_button.config(text="Connect")
+
+    def check_if_port_open(self):
+        try:
+            ser = serial.Serial(self.combobox.get(), 9600, timeout=0)
+            ser.close()
+            if not ser.is_open:
+                return True
+        except serial.SerialException as ex:
+            return False
+
+    def open_serial_port_and_read(self, stop_event, arg):
+
         with serial.Serial(self.combobox.get(), 9600, timeout=0) as ser:
-            while True:
-                self.toggle_connect_button_state()
+
+            while not stop_event.is_set():
 
                 line = ser.readline()  # read a '\n' terminated line
                 data = str(line)
@@ -70,7 +92,7 @@ class Application:
                     self.text_console.insert('1.0',
                                              'String incorrect. Possible cause - DigiBirds in sleep mode\n')
 
-                if 'Q' in data:
+                elif 'Q' in data:
                     data_to_save = self.parse_bird_data(data)  # extracts depths and returns a dictionary data type
                     self.write_to_file(data_to_save)
                     self.text_console.insert('1.0',
@@ -80,16 +102,27 @@ class Application:
                 else:
                     self.text_console.insert('1.0',
                                              'Found incorrect or no data: {} \n'.format(data))
-                    self.text_console.delete("1.0", END)
+
+                if self.count_lines_on_text_console() > 20:
+                    self.text_console.delete("1.0", "20.0")
                     self.text_console.edit_reset()
+                time.sleep(0.2)
+
+        self.stop_thread.clear()  # sets the Event to False again
 
 
-    def open_serial_port_and_read_thread(self):
+    def count_lines_on_text_console(self):
+        (line, c) = map(int, self.text_console.index("end-1c").split("."))
+        return line
+
+    def connect_disconnect_event_thread(self):
         """
         A threading version of the open serial and read method
         """
-        thread = threading.Thread(target=self.open_serial_port_and_read, daemon=TRUE)
+        thread = threading.Thread(target=self.open_serial_port_and_read, args=(self.stop_thread, "Serial thread"),
+                                  daemon=TRUE)
         thread.start()
+
 
     def write_to_file(self, data_to_save):
         with open(os.path.join(os.path.abspath('.'), 'digiBirdsDepthsLog.txt'), 'w') as save_file:
